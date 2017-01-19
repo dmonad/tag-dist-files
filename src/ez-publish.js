@@ -30,31 +30,7 @@ program.on('--help', function () {
   `)
 })
 
-function computeConfig (entry) {
-  return getPackageJson(entry).then(function ([dir, p]) {
-    if (p.main == null) {
-      exit('You must specify the `main` property in your package.json!')
-    }
-
-    // all dependencies are external modules (exclude them in cjs builds)
-    var external = []
-    for (var name in p.dependencies) {
-      external.push(name)
-    }
-
-    return Promise.resolve({
-      name: p.name,
-      entry: entry,
-      cjs: path.join(dir, p.main),
-      umd: path.join(dir, p['browser']),
-      external: external
-    })
-  })
-}
-
-var getPackageJson = async(function * (getCallback, entry) {
-  var dir = path.resolve(path.dirname(entry))
-
+var getPackageJson = async(function * (getCallback, dir) {
   while (true) {
     var [err] = yield fs.access(dir, fs.F_OK, getCallback())
     if (!err) {
@@ -73,156 +49,156 @@ var getPackageJson = async(function * (getCallback, entry) {
 })
 
 program
-  .command('*')
+  .command('publish [dir]')
   .description('Publish the project including distribution files:\n               Build > version bump > commit > create git tag > publish to npm ')
-  .action(async(function * (getCallback) {
-    var rl = require('readline').createInterface({
-      input: process.stdin,
-      output: process.stdout
-    })
-    dir = path.resolve('./')
-    var [err, p] = yield loadJsonFile(path.join(dir, 'package.json'))
-    if (err) exit('package.json does not exist in this directory!')
+  .action(function (dir) {
+    async(function * (getCallback) {
+      var rl = require('readline').createInterface({
+        input: process.stdin,
+        output: process.stdout
+      })
+      var p, err
+      dir = path.join(process.cwd(), dir || '.')
+      ;[err, [dir, p]] = yield getPackageJson(dir || './')
 
-    // ask for version increment type
-    var validTypes = ['major', 'minor', 'patch', 'premajor', 'preminor', 'prepatch', 'prerelease']
-    var [type] = yield rl.question(`How do you want to increment the version? [${validTypes.join('|')}]\n=>`, getCallback())
+      if (err != null) exit('package.json does not exist in this directory!')
 
-    var validType = validTypes.some(function (t) { return t === type })
+      // pull remote updates
+      yield exec('git remote update', getCallback())
 
-    if (validType) {
-      p.version = semver.inc(p.version, type, 'alpha')
-      if (p.version == null) exit('Invalid semver version in package.json!')
-    } else {
-      exit('You must choose one of of these: ' + validTypes.join(' | '))
-    }
+      var stdout, stderr
 
-    var [message] = yield rl.question(`Insert the release message (press double enter to continue)\n=>`, getCallback())
-    var input = message
-    while (input !== '') {
-      ;[input] = yield rl.question('..', getCallback())
-      message = message + '\n' + input
-    }
-    // pull remote updates
-    yield exec('git remote update', getCallback())
+      // print if remote updates exist
+      ;[err, stdout, stderr] = yield exec('git status -uno -s', getCallback())
+      console.log(stdout)
+      if (err != null || stdout !== '') exit('Commit remaining changes before publishing')
 
-    var stdout, stderr
+      // ask for version increment type
+      var validTypes = ['major', 'minor', 'patch', 'premajor', 'preminor', 'prepatch', 'prerelease']
+      var [type] = yield rl.question(`How do you want to increment the version? [${validTypes.join('|')}]\n=>`, getCallback())
 
-    // print if remote updates exist
-    ;[err, stdout, stderr] = yield exec('git status -uno', getCallback())
-    if (err != null) exit(err)
-    else console.log(stdout)
+      var validType = validTypes.some(function (t) { return t === type })
 
-    // ask user if sHe really want's to publish
-    var [answer] = yield rl.question(`Publishing version ${p.version}. Message: ${message}. Okay? [y|N]\n=>`, getCallback())
-    if (['y', 'Y', 'yes'].every(function (a) { return a !== answer })) {
-      exit('Interrupt publish')
-    }
+      if (validType) {
+        p.version = semver.inc(p.version, type, 'alpha')
+        if (p.version == null) exit('Invalid semver version in package.json!')
+      } else {
+        exit('You must choose one of of these: ' + validTypes.join(' | '))
+      }
 
-    // update package.json
-    ;[err] = yield writeJsonFile(path.join(dir, 'package.json'), p, { indent: 2 })
-    if (err != null) exit(err)
+      var [message] = yield rl.question(`Insert the release message (press double enter to continue)\n=>`, getCallback())
+      var input = message
+      while (input !== '') {
+        ;[input] = yield rl.question('..', getCallback())
+        message = message + '\n' + input
+      }
 
-    var opts = { cwd: dir }
+      // ask user if sHe really want's to publish
+      var [answer] = yield rl.question(`Publishing version ${p.version}. Message: ${message}. Okay? [y|N]\n=>`, getCallback())
+      if (['y', 'Y', 'yes'].every(function (a) { return a !== answer })) {
+        exit('Interrupt publish')
+      }
 
-    // commit remaining changes (changes to package.json)
-    ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version}\n\n${message}""`, opts, getCallback())
-    if (err) {
-      exit(`Unable to commit remaining changes:\n\n${stdout}\n\n${stderr}`)
-    } else {
-      console.log('✓ Committed remaining changes')
-    }
+      // update package.json
+      ;[err] = yield writeJsonFile(path.join(dir, 'package.json'), p, { indent: 2 })
+      if (err != null) exit(err)
 
-    // push commit
-    ;[err, stdout, stderr] = yield exec('git push', opts, getCallback())
-    if (err) {
-      exit(`Unable to push changes:\n\n${stdout}\n\n${stderr}`)
-    } else {
-      console.log('✓ Pushed changes')
-    }
+      var opts = { cwd: dir }
 
-    // detach head
-    ;[err, stdout, stderr] = yield exec('git checkout --detach', opts, getCallback())
-    if (err) {
-      exit(`Unable to detach head:\n\n${stdout}\n\n${stderr}`)
-    } else {
-      console.log('✓ Detached head')
-    }
+      // commit remaining changes (changes to package.json)
+      ;[err, stdout, stderr] = yield exec(`git commit -am "Published v${p.version}\n\n${message}"`, opts, getCallback())
+      if (err) {
+        exit(`Unable to commit version update (commit version property in package.json):\n\n${stdout}\n\n${stderr}`)
+      } else {
+        console.log('✓ Commit version update')
+      }
 
-    // check if dist files exist
-    var [distributionFilesExist] = yield fs.access(path.join(dir, 'dist'), fs.F_OK, getCallback())
-    if (!distributionFilesExist) {
+      // push commit
+      ;[err, stdout, stderr] = yield exec('git push', opts, getCallback())
+      if (err) {
+        exit(`Unable to push changes:\n\n${stdout}\n\n${stderr}`)
+      } else {
+        console.log('✓ Push changes')
+      }
+
+      // detach head
+      ;[err, stdout, stderr] = yield exec('git checkout --detach', opts, getCallback())
+      if (err) {
+        exit(`Unable to detach head:\n\n${stdout}\n\n${stderr}`)
+      } else {
+        console.log('✓ Detach head')
+      }
+
+      var commitDistFiles = false
+
       // add dist files
       ;[err, stdout, stderr] = yield exec('git add ./dist/* -f', opts, getCallback())
       if (err) {
-        exit(`Unable to add dist files:\n\n${stdout}\n\n${stderr}`)
+        console.log('❌ Failed to add ./dist/* to index')
       } else {
-        console.log('✓ Added dist files to index')
+        commitDistFiles = true
+        console.log('✓ Add ./dist/* to index')
       }
 
-      // commit dist files
-      ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version} -- added dist files"`, opts, getCallback())
+      // add module exports (i.e. ./ez-publish.*)
+      ;[err, stdout, stderr] = yield exec(`git add ./${p.name}.* -f`, opts, getCallback())
       if (err) {
-        exit(`Unable to commit dist files:\n\n${stdout}\n\n${stderr}`)
+        console.log(`❌ Failed to add ./${p.name}.* to index`)
       } else {
-        console.log('✓ Committed dist files')
+        commitDistFiles = true
+        console.log(`✓ Add ./${p.name}.* to index`)
       }
-    }
 
+      if (commitDistFiles) {
+        // commit dist files
+        ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version} -- added dist files"`, opts, getCallback())
+        if (err) {
+          exit(`Unable to commit dist files:\n\n${stdout}\n\n${stderr}`)
+        } else {
+          console.log('✓ Commit dist files')
+        }
+      }
 
-    // add module exports (i.e. ./ez-publish.*)
-    ;[err, stdout, stderr] = yield exec(`git add ./${packageJson.name}.* -f`, opts, getCallback())
-    if (err) {
-      exit(`Unable to add ./${packageJson.name}.* to index:\n\n${stdout}\n\n${stderr}`)
-    } else {
-      console.log(`✓ Added ./${packageJson.name}.* to index`)
-    }
+      // tag releasefiles
+      ;[err, stdout, stderr] = yield exec(`git tag v${p.version} -m "${message}"`, opts, getCallback())
+      if (err) {
+        exit(`Unable to tag commit:\n\n${stdout}\n\n${stderr}`)
+      } else {
+        console.log('✓ Tag release')
+      }
 
-    // commit dist files
-    ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version} -- added dist files"`, opts, getCallback())
-    if (err) {
-      exit(`Unable to commit dist files:\n\n${stdout}\n\n${stderr}`)
-    } else {
-      console.log('✓ Committed dist files')
-    }
+      // push tag
+      ;[err, stdout, stderr] = yield exec(`git push origin v${p.version}`, opts, getCallback())
+      if (err) {
+        exit(`Unable to tag commit:\n\n${stdout}\n\n${stderr}`)
+      } else {
+        console.log('✓ Push tag')
+      }
 
-    // tag releasefiles
-    ;[err, stdout, stderr] = yield exec(`git tag v${p.version} -m "${message}"`, opts, getCallback())
-    if (err) {
-      exit(`Unable to tag commit:\n\n${stdout}\n\n${stderr}`)
-    } else {
-      console.log('✓ Tagged release')
-    }
+      // Publish to npm
+      ;[err, stdout, stderr] = yield exec('npm publish', opts, getCallback())
+      if (err) {
+        console.log('❌ Failed to publish to npm. Please call `npm publish` yourself')
+      } else {
+        console.log('✓ Publish to npm')
+      }
 
-    // push tag
-    ;[err, stdout, stderr] = yield exec(`git push origin v${p.version}`, opts, getCallback())
-    if (err) {
-      exit(`Unable to tag commit:\n\n${stdout}\n\n${stderr}`)
-    } else {
-      console.log('✓ Pushed tag')
-    }
+      // check out master
+      ;[err, stdout, stderr] = yield exec('git checkout master', opts, getCallback())
+      if (err) {
+        exit(`Unable to checkout branch 'master':\n\n${stdout}\n\n${stderr}`)
+      } else {
+        console.log('✓ Checkout master branch')
+        process.exit(0)
+      }
+    })()
+  })
 
-    // Publish to npm
-    ;[err, stdout, stderr] = yield exec('npm publish', opts, getCallback())
-    if (err) {
-      console.log('❌ Failed to publish to npm. Please call `npm publish` yourself')
-    } else {
-      console.log('✓ Published to npm')
-    }
-
-    // check out master
-    ;[err, stdout, stderr] = yield exec('git checkout master', opts, getCallback())
-    if (err) {
-      exit(`Unable to checkout branch 'master':\n\n${stdout}\n\n${stderr}`)
-    } else {
-      console.log('✓ Checked out master branch')
-      process.exit(0)
-    }
-  }))
+program
+  .command('*')
+  .action(function (env) {
+    program.help()
+  })
 
 program
   .parse(process.argv)
-
-if (program.args.length === 0) {
-  program.help()
-}

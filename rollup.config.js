@@ -16,5 +16,7 @@ export default {
       exclude: 'node_modules/**'
     })
   ],
-  external: externalDependencies
+  sourceMap: 'inline',
+  external: externalDependencies,
+  banner: '#!/usr/bin/env node'
 }
