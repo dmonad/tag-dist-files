@@ -50,8 +50,9 @@ var getPackageJson = async(function * (getCallback, dir) {
 
 program
   .command('publish [dir]')
-  .description('Publish the project including distribution files:\n               Build > version bump > commit > create git tag > publish to npm ')
-  .action(function (dir) {
+  .description('Publish the project including distribution files:\n               Build > version bump > commit > create git tag > publish to npm')
+  .option('-s, --semver <semver>', 'Specify semver type major|minor|patch|premajor|preminor|prepatch|prerelease', /^(major|minor|patch|premajor|preminor|prepatch|prerelease)$/i)
+  .action(function (dir, command) {
     async(function * (getCallback) {
       var rl = require('readline').createInterface({
         input: process.stdin,
@@ -67,16 +68,21 @@ program
       yield exec('git remote update', getCallback())
 
       var stdout, stderr
+      var opts = { cwd: dir }
 
       // print if remote updates exist
-      ;[err, stdout, stderr] = yield exec('git status -uno -s', getCallback())
+      ;[err, stdout, stderr] = yield exec('git status -uno -s', opts, getCallback())
       console.log(stdout)
       if (err != null || stdout !== '') exit('Commit remaining changes before publishing')
 
       // ask for version increment type
       var validTypes = ['major', 'minor', 'patch', 'premajor', 'preminor', 'prepatch', 'prerelease']
-      var [type] = yield rl.question(`How do you want to increment the version? [${validTypes.join('|')}]\n=>`, getCallback())
-
+      var type
+      if (command.semver == null) {
+        ;[type] = yield rl.question(`How do you want to increment the version? [${validTypes.join('|')}]\n=>`, getCallback())
+      } else {
+        type = command.semver
+      }
       var validType = validTypes.some(function (t) { return t === type })
 
       if (validType) {
@@ -102,8 +108,6 @@ program
       // update package.json
       ;[err] = yield writeJsonFile(path.join(dir, 'package.json'), p, { indent: 2 })
       if (err != null) exit(err)
-
-      var opts = { cwd: dir }
 
       // commit remaining changes (changes to package.json)
       ;[err, stdout, stderr] = yield exec(`git commit -am "Published v${p.version}\n\n${message}"`, opts, getCallback())
@@ -140,18 +144,23 @@ program
         console.log('✓ Add ./dist/* to index')
       }
 
-      // add module exports (i.e. ./ez-publish.*)
-      ;[err, stdout, stderr] = yield exec(`git add ./${p.name}.* -f`, opts, getCallback())
+      // add module exports (i.e. ./ez-publish*)
+      ;[err, stdout, stderr] = yield exec(`git add ./${p.name}* -f`, opts, getCallback())
       if (err) {
-        console.log(`❌ Failed to add ./${p.name}.* to index`)
+        console.log(`❌ Failed to add ./${p.name}* to index`)
       } else {
         commitDistFiles = true
-        console.log(`✓ Add ./${p.name}.* to index`)
+        console.log(`✓ Add ./${p.name}* to index`)
       }
+
+      // set p.private = false (in order to enable publishing)
+      p.private = false
+      ;[err] = yield writeJsonFile(path.join(dir, 'package.json'), p, { indent: 2 })
+      if (err != null) exit(err)
 
       if (commitDistFiles) {
         // commit dist files
-        ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version} -- added dist files"`, opts, getCallback())
+        ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version} -- distribution files"`, opts, getCallback())
         if (err) {
           exit(`Unable to commit dist files:\n\n${stdout}\n\n${stderr}`)
         } else {

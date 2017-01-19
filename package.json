@@ -1,13 +1,18 @@
 {
   "name": "ez-publish",
+  "private": true,
   "version": "0.0.0",
   "description": "Command line tool for publishing js libraries",
-  "main": "ez-publish.js",
+  "bin": {
+    "publish": "./ez-publish.js"
+  },
   "scripts": {
     "dist": "rollup -c",
     "watch": "rollup -cw",
     "lint": "standard",
-    "debug": "npm run dist && cd _debugging && node --inspect --debug-brk ../ez-publish.js"
+    "debug": "npm run dist && cd _debugging && node --inspect --debug-brk ../ez-publish.js",
+    "publish": "npm run lint && npm run dist && node ./ez-publish.js",
+    "test": "npm run dist && rm -rf _debugging; git clone git@github.com:ez-tools/_debugging.git && node ./ez-publish.js publish _debugging -s patch"
   },
   "keywords": [
     "publish",
