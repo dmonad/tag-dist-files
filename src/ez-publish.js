@@ -5,7 +5,7 @@ import fs from 'fs'
 import writeJsonFile from 'write-json-file'
 import semver from 'semver'
 import loadJsonFile from 'load-json-file'
-import { exec } from 'child_process'
+import { exec, spawn } from 'child_process'
 import async from 'ez-async'
 
 process.on('uncaughtException', function (err) {
@@ -92,15 +92,25 @@ program
         exit('You must choose one of of these: ' + validTypes.join(' | '))
       }
 
-      var [message] = yield rl.question(`Insert the release message (press double enter to continue)\n=>`, getCallback())
-      var input = message
-      while (input !== '') {
-        ;[input] = yield rl.question('..', getCallback())
-        message = message + '\n' + input
+      yield exec('echo "# Release message" > .releaseMessage', opts, getCallback())
+      var code
+      rl.pause()
+      ;[err, code] = yield spawn('vim', ['.releaseMessage'], { cwd: dir, stdio: 'inherit' }).on('exit', getCallback())
+      rl.resume()
+
+      console.log('vim:::', err, code)
+      var releaseMessage
+      ;[err, releaseMessage] = yield fs.readFile(path.join(dir, '.releaseMessage'), 'utf8', getCallback())
+      yield exec('rm .releaseMessage', opts, getCallback())
+      console.log('releaseMessage', releaseMessage)
+      releaseMessage = releaseMessage.split('\n').filter(line => { line.length > 0 && line[0] !== '#' }).join('\n')
+
+      if (releaseMessage.length > 0) {
+        exit('You must create a releaseMessage!')
       }
 
       // ask user if sHe really want's to publish
-      var [answer] = yield rl.question(`Publishing version ${p.version}. Message: ${message}. Okay? [y|N]\n=>`, getCallback())
+      var [answer] = yield rl.question(`Publishing version ${p.version}. Message:\n${releaseMessage}\n\n Okay? [y|N]\n=>`, getCallback())
       if (['y', 'Y', 'yes'].every(function (a) { return a !== answer })) {
         exit('Interrupt publish')
       }
@@ -110,7 +120,7 @@ program
       if (err != null) exit(err)
 
       // commit remaining changes (changes to package.json)
-      ;[err, stdout, stderr] = yield exec(`git commit -am "Published v${p.version}\n\n${message}"`, opts, getCallback())
+      ;[err, stdout, stderr] = yield exec(`git commit -am "Published v${p.version}\n\n${releaseMessage}"`, opts, getCallback())
       if (err) {
         exit(`Unable to commit version update (commit version property in package.json):\n\n${stdout}\n\n${stderr}`)
       } else {
@@ -169,7 +179,7 @@ program
       }
 
       // tag releasefiles
-      ;[err, stdout, stderr] = yield exec(`git tag v${p.version} -m "${message}"`, opts, getCallback())
+      ;[err, stdout, stderr] = yield exec(`git tag v${p.version} -m "${releaseMessage}"`, opts, getCallback())
       if (err) {
         exit(`Unable to tag commit:\n\n${stdout}\n\n${stderr}`)
       } else {
