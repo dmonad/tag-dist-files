@@ -49,8 +49,8 @@ var getPackageJson = async(function * (getCallback, dir) {
 })
 
 program
-  .command('publish [dir]')
-  .description('Publish the project including distribution files:\n               Build > version bump > commit > create git tag > publish to npm')
+  .arguments('[dir]')
+  .description('Publish the project including distribution files:\n  Build > version bump > commit > create git tag > publish to npm')
   .option('-s, --semver <semver>', 'Specify semver type major|minor|patch|premajor|preminor|prepatch|prerelease', /^(major|minor|patch|premajor|preminor|prepatch|prerelease)$/i)
   .option('-x, --use-xdg-open', 'Use the default graphical (X) editor')
   .action(function (dir, command) {
@@ -232,11 +232,14 @@ program
     })()
   })
 
-program
-  .command('*')
-  .action(function (env) {
-    program.help()
-  })
+var args = process.argv
+if (args.every((arg, i) => i < 2 || arg[0] === '-')) {
+  args.push('.')
+}
+
+console.dir(args)
 
 program
   .parse(process.argv)
+
+if (!program.args.length) program.help()
