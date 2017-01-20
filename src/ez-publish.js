@@ -106,7 +106,6 @@ program
 
       var releaseMessage
       ;[err, releaseMessage] = yield fs.readFile(path.join(dir, '.releaseMessage'), 'utf8', getCallback())
-      console.log('releaseMessage', releaseMessage)
       releaseMessage = releaseMessage.split('\n').filter(line => line[0] !== '#').join('\n')
 
       if (releaseMessage.length === 0) {
@@ -142,7 +141,7 @@ program
       }
 
       // commit remaining changes (changes to package.json, CHANGELOG.md)
-      ;[err, stdout, stderr] = yield exec(`git commit -am "Published v${p.version}\n\n${releaseMessage}"`, opts, getCallback())
+      ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version}: ${releaseMessage}"`, opts, getCallback())
       if (err) {
         exit(`Unable to commit version update (commit version property in package.json):\n\n${stdout}\n\n${stderr}`)
       } else {
@@ -236,8 +235,6 @@ var args = process.argv
 if (args.every((arg, i) => i < 2 || arg[0] === '-')) {
   args.push('.')
 }
-
-console.dir(args)
 
 program
   .parse(process.argv)
