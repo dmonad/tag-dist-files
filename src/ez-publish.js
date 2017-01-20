@@ -52,6 +52,7 @@ program
   .command('publish [dir]')
   .description('Publish the project including distribution files:\n               Build > version bump > commit > create git tag > publish to npm')
   .option('-s, --semver <semver>', 'Specify semver type major|minor|patch|premajor|preminor|prepatch|prerelease', /^(major|minor|patch|premajor|preminor|prepatch|prerelease)$/i)
+  .option('-x, --use-xdg-open', 'Use the default graphical (X) editor')
   .action(function (dir, command) {
     async(function * (getCallback) {
       var rl = require('readline').createInterface({
@@ -92,21 +93,24 @@ program
         exit('You must choose one of of these: ' + validTypes.join(' | '))
       }
 
-      yield exec('echo "# Release message" > .releaseMessage', opts, getCallback())
-      var code
-      rl.pause()
-      ;[err, code] = yield spawn('vim', ['.releaseMessage'], { cwd: dir, stdio: 'inherit' }).on('exit', getCallback())
-      rl.resume()
+      if (!fs.existsSync(path.join(dir, '.releaseMessage'))) {
+        yield exec('echo "Title\n\nDescription" > .releaseMessage', opts, getCallback())
+      }
+      if (command.useXdgOpen) {
+        ;[err] = yield exec('xdg-open .releaseMessage', opts, getCallback())
+      } else {
+        rl.pause()
+        ;[err] = yield spawn('vim', ['.releaseMessage'], { cwd: dir, stdio: 'inherit' }).on('exit', getCallback())
+        rl.resume()
+      }
 
-      console.log('vim:::', err, code)
       var releaseMessage
       ;[err, releaseMessage] = yield fs.readFile(path.join(dir, '.releaseMessage'), 'utf8', getCallback())
-      yield exec('rm .releaseMessage', opts, getCallback())
       console.log('releaseMessage', releaseMessage)
-      releaseMessage = releaseMessage.split('\n').filter(line => { line.length > 0 && line[0] !== '#' }).join('\n')
+      releaseMessage = releaseMessage.split('\n').filter(line => line[0] !== '#').join('\n')
 
-      if (releaseMessage.length > 0) {
-        exit('You must create a releaseMessage!')
+      if (releaseMessage.length === 0) {
+        exit('You must create a release message!')
       }
 
       // ask user if sHe really want's to publish
@@ -116,10 +120,28 @@ program
       }
 
       // update package.json
+      p.private = true // So only ez-publish can publish the package
       ;[err] = yield writeJsonFile(path.join(dir, 'package.json'), p, { indent: 2 })
       if (err != null) exit(err)
 
-      // commit remaining changes (changes to package.json)
+      var changelog = `# ${p.version} ${releaseMessage}\n\n`
+      var changelogPath = path.join(dir, 'CHANGELOG.md')
+      var err3
+      if (fs.existsSync(changelogPath)) {
+        var content
+        ;[err3, content] = yield fs.readFile(changelogPath, 'utf8', getCallback())
+        changelog += content
+      }
+      ;[err] = yield fs.writeFile(changelogPath, changelog, 'utf8', getCallback())
+      var [err2] = yield exec('git add CHANGELOG.md', opts, getCallback())
+
+      if (err || err2 || err3) {
+        exit(`Unable to update CHANGELOG.md: ${err || err2 || err3}`)
+      } else {
+        console.log('✓ Update CHANGELOG.md')
+      }
+
+      // commit remaining changes (changes to package.json, CHANGELOG.md)
       ;[err, stdout, stderr] = yield exec(`git commit -am "Published v${p.version}\n\n${releaseMessage}"`, opts, getCallback())
       if (err) {
         exit(`Unable to commit version update (commit version property in package.json):\n\n${stdout}\n\n${stderr}`)
@@ -143,14 +165,11 @@ program
         console.log('✓ Detach head')
       }
 
-      var commitDistFiles = false
-
       // add dist files
       ;[err, stdout, stderr] = yield exec('git add ./dist/* -f', opts, getCallback())
       if (err) {
         console.log('❌ Failed to add ./dist/* to index')
       } else {
-        commitDistFiles = true
         console.log('✓ Add ./dist/* to index')
       }
 
@@ -159,7 +178,6 @@ program
       if (err) {
         console.log(`❌ Failed to add ./${p.name}* to index`)
       } else {
-        commitDistFiles = true
         console.log(`✓ Add ./${p.name}* to index`)
       }
 
@@ -168,14 +186,14 @@ program
       ;[err] = yield writeJsonFile(path.join(dir, 'package.json'), p, { indent: 2 })
       if (err != null) exit(err)
 
-      if (commitDistFiles) {
-        // commit dist files
-        ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version} -- distribution files"`, opts, getCallback())
-        if (err) {
-          exit(`Unable to commit dist files:\n\n${stdout}\n\n${stderr}`)
-        } else {
-          console.log('✓ Commit dist files')
-        }
+      yield exec('git add ./package.json', opts, getCallback())
+
+      // commit dist files
+      ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version} -- distribution files"`, opts, getCallback())
+      if (err) {
+        exit(`Unable to commit dist files:\n\n${stdout}\n\n${stderr}`)
+      } else {
+        console.log('✓ Commit dist files')
       }
 
       // tag releasefiles
@@ -208,6 +226,7 @@ program
         exit(`Unable to checkout branch 'master':\n\n${stdout}\n\n${stderr}`)
       } else {
         console.log('✓ Checkout master branch')
+        yield exec('rm .releaseMessage', opts, getCallback())
         process.exit(0)
       }
     })()
