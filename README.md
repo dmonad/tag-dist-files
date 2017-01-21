@@ -27,7 +27,7 @@ We use a nifty trick to tag distribution files without fucking up our commit his
 
 ### Checklist
 
-This tools is for you if.. (all of the following must be true)
+This tool is for you if.. (all of the following must be true)
 
 - [x] You have a `package.json`.
 - [x] All files you want to distribute are in `./dist` or match `./PROJECTNAME*`.Where `PROJECTNAME` is given by `require(package.json).name`
