@@ -151,8 +151,8 @@ program
       }
 
       // remove existing tags (e.g. created by npm publish)
-      yield exec(`git tag -d ${p.version}`)
-      yield exec(`git push origin :refs/tags/${p.version}`)
+      yield exec(`git tag -d ${p.version}`, opts, getCallback())
+      yield exec(`git push origin :refs/tags/${p.version}`, opts, getCallback())
 
       // tag releasefiles
       ;[err, stdout, stderr] = yield exec(`git tag v${p.version} -m "${releaseMessage}"`, opts, getCallback())
