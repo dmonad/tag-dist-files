@@ -21,7 +21,7 @@ We use a nifty trick to tag distribution files without fucking up our commit his
 * Publish to npm, if package is registered
 * Prevent npm from publishing using `npm publish` (always publish using `ez-publish`)
 * Enforces you to write a release message
-* Adds that release message to CHANGELOG.md, and to the tag description
+* Adds that release message to `./CHANGELOG.md`, and to the tag description
 * OPTIONAL: You can work on `./.releaseMessage` before you publish using `ez-publish`
 * Some sanity checks (committed all remaining changes before publishing?)
 
@@ -31,7 +31,7 @@ This tools is for you if.. (all of the following must be true)
 
 - [x] You have a `package.json`.
 - [x] All files you want to distribute are in `./dist` or match `./PROJECTNAME*`.Where `PROJECTNAME` is given by `require(package.json).name`
-- [x] You understand [what it does](#what-it-does)
+- [x] You understand [what it does](https://github.com/dmonad/ez-publish#what-it-does)
 - [x] You work in a unix-ish environment (Linux | Mac (untested) | Windows with Cygwin (untested))
 
 ### Tutorial
