@@ -44,7 +44,7 @@ var getPackageJson = async(function * (getCallback, dir) {
       } else {
         dir = path.join(dir, '..')
       }
-    } else exit('You need to specify a package.json file!')
+    } else exit('You must specify a package.json file!')
   }
 })
 
