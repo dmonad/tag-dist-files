@@ -1,7 +1,7 @@
 {
   "name": "ez-publish",
   "private": true,
-  "version": "1.0.0-alpha.0",
+  "version": "1.0.0-alpha.1",
   "description": "Command line tool for publishing js libraries",
   "bin": {
     "publish": "./ez-publish.js"
