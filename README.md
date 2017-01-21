@@ -20,7 +20,6 @@ We use a nifty trick to tag distribution files without fucking up our commit his
 
 * Adds that release message to `./CHANGELOG.md`, and to the tag description
 * OPTIONAL: You can work on `./.releaseMessage` before you publish using `ez-publish`
-* Some sanity checks (committed all remaining changes before publishing?)
 
 ### Checklist
 

@@ -68,11 +68,6 @@ program
       var stdout, stderr
       var opts = { cwd: dir }
 
-      // print if remote updates exist
-      ;[err, stdout, stderr] = yield exec('git status -uno -s', opts, getCallback())
-      console.log(stdout)
-      if (err != null || stdout !== '') exit('Commit remaining changes before publishing')
-
       if (!fs.existsSync(path.join(dir, '.releaseMessage'))) {
         yield exec('echo "Title\n\nDescription" > .releaseMessage', opts, getCallback())
       }
