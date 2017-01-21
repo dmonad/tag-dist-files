@@ -1,3 +1,7 @@
+# 1.0.0-alpha.6 
+Added files attribute to package.json
+
+
 # 1.0.0-alpha.5 Remove a lot of sanity checks
 
 
