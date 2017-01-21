@@ -207,14 +207,6 @@ program
         console.log('✓ Push tag')
       }
 
-      // Publish to npm
-      ;[err, stdout, stderr] = yield exec('npm publish', opts, getCallback())
-      if (err) {
-        console.log('❌ Failed to publish to npm. Please call `npm publish` yourself', err, stderr)
-      } else {
-        console.log('✓ Publish to npm')
-      }
-
       // check out master
       ;[err, stdout, stderr] = yield exec('git checkout master', opts, getCallback())
       if (err) {

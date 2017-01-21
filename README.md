@@ -18,8 +18,6 @@ We use a nifty trick to tag distribution files without fucking up our commit his
 
 ### What it also does
 
-* Publish to npm, if package is registered
-* Enforces you to write a release message
 * Adds that release message to `./CHANGELOG.md`, and to the tag description
 * OPTIONAL: You can work on `./.releaseMessage` before you publish using `ez-publish`
 * Some sanity checks (committed all remaining changes before publishing?)
@@ -45,6 +43,8 @@ You should write a `publish` script in your `package.json` (overwrites default b
 ..
   "scripts": {
     ..
-    "publish": "npm run dist && npm run lint && publish"
+    "prepublish": "npm run dist && npm run lint && publish"
   }
 ```
+
+Then you can just run `npm publish`, and automatically create tags etc..
