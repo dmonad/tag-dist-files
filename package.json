@@ -1,11 +1,13 @@
 {
   "name": "ez-publish",
-  "version": "1.0.0-alpha.6",
+  "version": "1.0.0-alpha.7",
   "description": "Command line tool for publishing js libraries",
   "bin": {
     "publish": "./ez-publish.js"
   },
-  "files": ["ez-publish.js"],
+  "files": [
+    "ez-publish.js"
+  ],
   "scripts": {
     "dist": "rollup -c",
     "watch": "rollup -cw",
