@@ -119,7 +119,6 @@ program
       }
 
       // update package.json
-      p.private = true // So only ez-publish can publish the package
       ;[err] = yield writeJsonFile(path.join(dir, 'package.json'), p, { indent: 2 })
       if (err != null) exit(err)
 
@@ -163,12 +162,13 @@ program
       } else {
         console.log('✓ Detach head')
       }
-
+      var releasefilesAdded = false
       // add dist files
       ;[err, stdout, stderr] = yield exec('git add ./dist/* -f', opts, getCallback())
       if (err) {
         console.log('❌ Failed to add ./dist/* to index')
       } else {
+        releasefilesAdded = true
         console.log('✓ Add ./dist/* to index')
       }
 
@@ -177,22 +177,18 @@ program
       if (err) {
         console.log(`❌ Failed to add ./${p.name}* to index`)
       } else {
+        releasefilesAdded = true
         console.log(`✓ Add ./${p.name}* to index`)
       }
 
-      // set p.private = false (in order to enable publishing)
-      p.private = false
-      ;[err] = yield writeJsonFile(path.join(dir, 'package.json'), p, { indent: 2 })
-      if (err != null) exit(err)
-
-      yield exec('git add ./package.json', opts, getCallback())
-
-      // commit dist files
-      ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version} -- distribution files"`, opts, getCallback())
-      if (err) {
-        exit(`Unable to commit dist files:\n\n${stdout}\n\n${stderr}`)
-      } else {
-        console.log('✓ Commit dist files')
+      if (releasefilesAdded) {
+        // commit dist files
+        ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version} -- distribution files"`, opts, getCallback())
+        if (err) {
+          exit(`Unable to commit dist files:\n\n${stdout}\n\n${stderr}`)
+        } else {
+          console.log('✓ Commit dist files')
+        }
       }
 
       // tag releasefiles
@@ -214,7 +210,7 @@ program
       // Publish to npm
       ;[err, stdout, stderr] = yield exec('npm publish', opts, getCallback())
       if (err) {
-        console.log('❌ Failed to publish to npm. Please call `npm publish` yourself')
+        console.log('❌ Failed to publish to npm. Please call `npm publish` yourself', err, stderr)
       } else {
         console.log('✓ Publish to npm')
       }
