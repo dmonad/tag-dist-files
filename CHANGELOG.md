@@ -1,3 +1,6 @@
+# 1.0.0-alpha.5 Remove a lot of sanity checks
+
+
 # 1.0.0-alpha.3 
 Use `prepublish` instead of `publish`. Let npm handle the publishing work
 
