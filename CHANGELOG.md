@@ -1,3 +1,6 @@
+# 1.0.0-alpha.8 Publish using np
+
+
 # 1.0.0-alpha.6 
 Added files attribute to package.json
 
