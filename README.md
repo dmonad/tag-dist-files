@@ -31,7 +31,7 @@ This tools is for you if.. (all of the following must be true)
 
 - [x] You have a `package.json`.
 - [x] All files you want to distribute are in `./dist` or match `./PROJECTNAME*`.Where `PROJECTNAME` is given by `require(package.json).name`
-- [x] You understand [what it does](https://github.com/dmonad/ez-publish#what-it-does)
+- [x] You understand [what it does](#what-it-does)
 - [x] You work in a unix-ish environment (Linux | Mac (untested) | Windows with Cygwin (untested))
 
 ### Tutorial
