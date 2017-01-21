@@ -52,10 +52,6 @@ program
   .option('-x, --use-xdg-open', 'Use the default graphical (X) editor')
   .action(function (dir, command) {
     async(function * (getCallback) {
-      var rl = require('readline').createInterface({
-        input: process.stdin,
-        output: process.stdout
-      })
       var p, err
       dir = path.join(process.cwd(), dir || '.')
       ;[err, [dir, p]] = yield getPackageJson(dir || './')
@@ -74,9 +70,7 @@ program
       if (command.useXdgOpen) {
         ;[err] = yield exec('xdg-open .releaseMessage', opts, getCallback())
       } else {
-        rl.pause()
         ;[err] = yield spawn('vim', ['.releaseMessage'], { cwd: dir, stdio: 'inherit' }).on('exit', getCallback())
-        rl.resume()
       }
 
       var releaseMessage
@@ -85,12 +79,6 @@ program
 
       if (releaseMessage.length === 0) {
         exit('You must create a release message!')
-      }
-
-      // ask user if sHe really want's to publish
-      var [answer] = yield rl.question(`Publishing version ${p.version}. Message:\n${releaseMessage}\n\n Okay? [y|N]\n=>`, getCallback())
-      if (['y', 'Y', 'yes'].every(function (a) { return a !== answer })) {
-        exit('Interrupt publish')
       }
 
       var changelog = `# ${p.version} ${releaseMessage}\n\n`
