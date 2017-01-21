@@ -38,12 +38,13 @@ $ npm i -g ez-publish
 $ publish
 ```
 
-You should write a `publish` script in your `package.json` (overwrites default behavior of `npm publish`)
+It is a good idea to write a `prepublish` script in your `package.json` (overwrites default behavior of `npm publish`)
 ```
 ..
   "scripts": {
     ..
-    "prepublish": "npm run dist && npm run lint && publish"
+    "prepublish": "npm run dist && npm run lint",
+    "postpublish": "publish"
   }
 ```
 

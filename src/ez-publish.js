@@ -2,8 +2,6 @@ import program from 'commander'
 import packageJson from '../package.json'
 import { posix as path } from 'path'
 import fs from 'fs'
-import writeJsonFile from 'write-json-file'
-import semver from 'semver'
 import loadJsonFile from 'load-json-file'
 import { exec, spawn } from 'child_process'
 import async from 'ez-async'
@@ -51,7 +49,6 @@ var getPackageJson = async(function * (getCallback, dir) {
 program
   .arguments('[dir]')
   .description('Publish the project including distribution files:\n  Build > version bump > commit > create git tag > publish to npm')
-  .option('-s, --semver <semver>', 'Specify semver type major|minor|patch|premajor|preminor|prepatch|prerelease', /^(major|minor|patch|premajor|preminor|prepatch|prerelease)$/i)
   .option('-x, --use-xdg-open', 'Use the default graphical (X) editor')
   .action(function (dir, command) {
     async(function * (getCallback) {
@@ -75,23 +72,6 @@ program
       ;[err, stdout, stderr] = yield exec('git status -uno -s', opts, getCallback())
       console.log(stdout)
       if (err != null || stdout !== '') exit('Commit remaining changes before publishing')
-
-      // ask for version increment type
-      var validTypes = ['major', 'minor', 'patch', 'premajor', 'preminor', 'prepatch', 'prerelease']
-      var type
-      if (command.semver == null) {
-        ;[type] = yield rl.question(`How do you want to increment the version? [${validTypes.join('|')}]\n=>`, getCallback())
-      } else {
-        type = command.semver
-      }
-      var validType = validTypes.some(function (t) { return t === type })
-
-      if (validType) {
-        p.version = semver.inc(p.version, type, 'alpha')
-        if (p.version == null) exit('Invalid semver version in package.json!')
-      } else {
-        exit('You must choose one of of these: ' + validTypes.join(' | '))
-      }
 
       if (!fs.existsSync(path.join(dir, '.releaseMessage'))) {
         yield exec('echo "Title\n\nDescription" > .releaseMessage', opts, getCallback())
@@ -117,10 +97,6 @@ program
       if (['y', 'Y', 'yes'].every(function (a) { return a !== answer })) {
         exit('Interrupt publish')
       }
-
-      // update package.json
-      ;[err] = yield writeJsonFile(path.join(dir, 'package.json'), p, { indent: 2 })
-      if (err != null) exit(err)
 
       var changelog = `# ${p.version} ${releaseMessage}\n\n`
       var changelogPath = path.join(dir, 'CHANGELOG.md')

@@ -10,7 +10,8 @@
     "watch": "rollup -cw",
     "lint": "standard",
     "debug": "npm run dist && cd _debugging && node --inspect --debug-brk ../ez-publish.js",
-    "prepublish": "npm run lint && npm run dist && node ./ez-publish.js",
+    "prepublish": "npm run lint && npm run dist",
+    "postpublish": "node ./ez-publish.js",
     "test": "npm run dist && rm -rf _debugging; git clone git@github.com:ez-tools/_debugging.git && node ./ez-publish.js publish _debugging -s patch"
   },
   "keywords": [
