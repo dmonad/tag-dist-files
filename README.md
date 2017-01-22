@@ -43,7 +43,7 @@ It is a good idea to write a `prepublish` script in your `package.json` (overwri
   "scripts": {
     ..
     "prepublish": "npm run dist && npm run lint",
-    "postpublish": "publish"
+    "postpublish": "publish -x"
   }
 ```
 
