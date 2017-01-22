@@ -10,11 +10,6 @@ process.on('uncaughtException', function (err) {
   console.error('An exception was thrown: ', err)
 })
 
-function exit (err) {
-  console.error(err)
-  process.exit(1)
-}
-
 program
   .version(packageJson.version)
   .description(packageJson.description)
@@ -28,38 +23,48 @@ program.on('--help', function () {
   `)
 })
 
-var getPackageJson = async(function * (getCallback, dir) {
-  while (true) {
-    var [err] = yield fs.access(dir, fs.F_OK, getCallback())
-    if (!err) {
-      var pDir = path.join(dir, 'package.json')
-      ;[err] = yield fs.access(pDir, fs.F_OK, getCallback())
-      if (!err) {
-        var p
-        ;[err, p] = yield loadJsonFile(pDir)
-        if (err) exit(err)
-        return [dir, p]
-      } else {
-        dir = path.join(dir, '..')
-      }
-    } else exit('You must specify a package.json file!')
-  }
-})
-
 program
   .arguments('[dir]')
   .description('Publish the project including distribution files:\n  Build > version bump > commit > create git tag > publish to npm')
   .option('-f, --overwrite-existing-tag', 'Overwrite the existing tag')
   .action(function (dir, command) {
+    // Specify options for calling process
+    var opts = { cwd: dir }
+
     async(function * (getCallback) {
+      function * exit (err) {
+        console.error(err)
+        console.log('Reverting to master branch')
+        yield exec('git checkout master', opts, getCallback())
+        process.exit(1)
+      }
+
+      var getPackageJson = async(function * (getCallback, dir) {
+        while (true) {
+          var [err] = yield fs.access(dir, fs.F_OK, getCallback())
+          if (!err) {
+            var pDir = path.join(dir, 'package.json')
+            ;[err] = yield fs.access(pDir, fs.F_OK, getCallback())
+            if (!err) {
+              var p
+              ;[err, p] = yield loadJsonFile(pDir)
+              if (err) yield * exit(err)
+              return [dir, p]
+            } else {
+              dir = path.join(dir, '..')
+            }
+          } else yield * exit('You must specify a package.json file!')
+        }
+      })
+
       var p, err, stdout, stderr
 
       // check for existing package.json
       ;[err, [dir, p]] = yield getPackageJson(dir || './')
-      if (err != null) exit('package.json does not exist in this directory!')
-
-      // Specify options for calling process
-      var opts = { cwd: dir }
+      if (err != null) {
+        console.error('package.json does not exist in this directory!')
+        process.exit(1)
+      }
 
       // Is there a release message?
       if (!fs.existsSync(path.join(dir, '.releaseMessage'))) {
@@ -76,7 +81,7 @@ program
       // detach head
       ;[err, stdout, stderr] = yield exec('git checkout --detach', opts, getCallback())
       if (err) {
-        exit(`Unable to detach head:\n\n${stdout}\n\n${stderr}`)
+        yield * exit(`Unable to detach head:\n\n${stdout}\n\n${stderr}`)
       } else {
         console.log('✓ Detach head')
       }
@@ -98,7 +103,7 @@ program
         // commit dist files
         ;[err, stdout, stderr] = yield exec(`git commit -am "v${p.version} -- distribution files"`, opts, getCallback())
         if (err) {
-          exit(`Unable to commit dist files:\n\n${stdout}\n\n${stderr}`)
+          yield * exit(`Unable to commit dist files:\n\n${stdout}\n\n${stderr}`)
         } else {
           console.log('✓ Commit dist files')
         }
@@ -116,7 +121,7 @@ program
       releaseMessage = releaseMessage.split('"').join('\\"')
       ;[err, stdout, stderr] = yield exec(`git tag v${p.version} -m "${releaseMessage}"`, opts, getCallback())
       if (err) {
-        exit(`Unable to tag commit:\n\n${stdout}\n\n${stderr}`)
+        yield * exit(`Unable to tag commit:\n\n${stdout}\n\n${stderr}`)
       } else {
         console.log('✓ Tag release')
       }
@@ -124,7 +129,7 @@ program
       // push tag
       ;[err, stdout, stderr] = yield exec(`git push origin v${p.version}`, opts, getCallback())
       if (err) {
-        exit(`Unable to tag commit:\n\n${stdout}\n\n${stderr}`)
+        yield * exit(`Unable to tag commit:\n\n${stdout}\n\n${stderr}`)
       } else {
         console.log('✓ Push tag')
       }
@@ -132,7 +137,7 @@ program
       // check out master
       ;[err, stdout, stderr] = yield exec('git checkout master', opts, getCallback())
       if (err) {
-        exit(`Unable to checkout branch 'master':\n\n${stdout}\n\n${stderr}`)
+        yield * exit(`Unable to checkout branch 'master':\n\n${stdout}\n\n${stderr}`)
       } else {
         console.log('✓ Checkout master branch')
         yield exec('rm .releaseMessage', opts, getCallback())
