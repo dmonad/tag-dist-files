@@ -1,7 +1,7 @@
 # tag-dist-files
 > Tag distribution files without messing up your git history - sort of fixes bower - awesome for publishing js libraries
 
-Publishing javascript libraries to bower can be very difficult. Bower expects that distribution files (babelified, uglified, webpackyfied, blubberyfied, ..) are present in the tagged commits. At least our users expect that. Having distribution files in the commit history sucks. This is why some projects (e.g. [quill](https://github.com/quilljs/quill/)) don't even publish distribution files in the tagged commits. This sucks for the user (not everyone wants to use 99 transpilation tools). Other projects (e.g. [ace](https://github.com/ajaxorg/ace-builds)) have a dedicated project for publishing distribution files. This sucks for the developer. I think this approach sucks less.
+Publishing javascript libraries to bower can be very difficult. Bower expects that distribution files (babelified & uglified & webpackyfied & blubberyfied, .. whatever we do these days..) exist in the tagged commits. At least our users expect that. But having distribution files in the commit history sucks. This is why some projects [e.g. [quill](https://github.com/quilljs/quill/)] don't even publish distribution files in the tagged commits. This sucks for the user - not everyone wants to use 99 transpilation tools. Other projects (e.g. [ace](https://github.com/ajaxorg/ace-builds)) have a dedicated project for publishing distribution files. This sucks for the developer. I think this approach sucks less.
 
 ### What it does
 
@@ -16,7 +16,7 @@ We use a nifty trick to tag distribution files without messing up our commit his
 
 ### Checklist
 
-This tool is for you if.. (all of the following must be true)
+This tool is for you if..
 
 - [x] You have a `package.json`.
 - [x] You understand [what it does](#what-it-does)
@@ -40,4 +40,4 @@ This tool works really well with `npm publish` (or even better: [np](https://git
   }
 ```
 
-Then you can just run `np`. The difference is that all files specified in package.json's `files` attribute are added to your tagged commit. Therefore, 'bower i your-package' installs distribution files too!
+Then you can just run `np`. The difference is that all files specified in package.json's `files` attribute are added to your tagged commit. Therefore, `bower i your-package` installs distribution files too!
