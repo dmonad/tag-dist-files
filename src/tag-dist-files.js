@@ -111,6 +111,9 @@ program
       }
 
       // tag releasefiles
+
+      // escape " characters in releaseMessage
+      releaseMessage = releaseMessage.split('"').join('\\"')
       ;[err, stdout, stderr] = yield exec(`git tag v${p.version} -m "${releaseMessage}"`, opts, getCallback())
       if (err) {
         exit(`Unable to tag commit:\n\n${stdout}\n\n${stderr}`)
