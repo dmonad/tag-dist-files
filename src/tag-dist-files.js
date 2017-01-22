@@ -3,7 +3,7 @@ import packageJson from '../package.json'
 import { posix as path } from 'path'
 import fs from 'fs'
 import loadJsonFile from 'load-json-file'
-import { exec, spawn } from 'child_process'
+import { exec } from 'child_process'
 import async from 'ez-async'
 
 process.on('uncaughtException', function (err) {
@@ -23,7 +23,7 @@ program.on('--help', function () {
   console.log(`
   Example:
 
-    $ ez-publish
+    $ tag-dist-files
 
   `)
 })
@@ -49,70 +49,29 @@ var getPackageJson = async(function * (getCallback, dir) {
 program
   .arguments('[dir]')
   .description('Publish the project including distribution files:\n  Build > version bump > commit > create git tag > publish to npm')
-  .option('-x, --use-xdg-open', 'Use the default graphical (X) editor')
+  .option('-f, --overwrite-existing-tag', 'Overwrite the existing tag')
   .action(function (dir, command) {
     async(function * (getCallback) {
-      var p, err
-      dir = path.join(process.cwd(), dir || '.')
-      ;[err, [dir, p]] = yield getPackageJson(dir || './')
+      var p, err, stdout, stderr
 
+      // check for existing package.json
+      ;[err, [dir, p]] = yield getPackageJson(dir || './')
       if (err != null) exit('package.json does not exist in this directory!')
 
-      // pull remote updates
-      yield exec('git remote update', getCallback())
-
-      var stdout, stderr
+      // Specify options for calling process
       var opts = { cwd: dir }
 
+      // Is there a release message?
       if (!fs.existsSync(path.join(dir, '.releaseMessage'))) {
         yield exec('echo "Title\n\nDescription" > .releaseMessage', opts, getCallback())
       }
-      if (command.useXdgOpen) {
-        ;[err] = yield exec('xdg-open .releaseMessage', opts, getCallback())
-      } else {
-        ;[err] = yield spawn('vim', ['.releaseMessage'], { cwd: dir, stdio: 'inherit' }).on('exit', getCallback())
-      }
+      // open it before publishing?
+      ;[err] = yield exec('xdg-open .releaseMessage', opts, getCallback())
 
+      // read releaseMessage
       var releaseMessage
       ;[err, releaseMessage] = yield fs.readFile(path.join(dir, '.releaseMessage'), 'utf8', getCallback())
       releaseMessage = releaseMessage.split('\n').filter(line => line[0] !== '#').join('\n')
-
-      if (releaseMessage.length === 0) {
-        exit('You must create a release message!')
-      }
-
-      var changelog = `# ${p.version} ${releaseMessage}\n\n`
-      var changelogPath = path.join(dir, 'CHANGELOG.md')
-      var err3
-      if (fs.existsSync(changelogPath)) {
-        var content
-        ;[err3, content] = yield fs.readFile(changelogPath, 'utf8', getCallback())
-        changelog += content
-      }
-      ;[err] = yield fs.writeFile(changelogPath, changelog, 'utf8', getCallback())
-      var [err2] = yield exec('git add CHANGELOG.md', opts, getCallback())
-
-      if (err || err2 || err3) {
-        exit(`Unable to update CHANGELOG.md: ${err || err2 || err3}`)
-      } else {
-        console.log('✓ Update CHANGELOG.md')
-      }
-
-      // commit remaining changes (changes to package.json, CHANGELOG.md)
-      ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version}: ${releaseMessage}"`, opts, getCallback())
-      if (err) {
-        exit(`Unable to commit version update (commit version property in package.json):\n\n${stdout}\n\n${stderr}`)
-      } else {
-        console.log('✓ Commit version update')
-      }
-
-      // push commit
-      ;[err, stdout, stderr] = yield exec('git push', opts, getCallback())
-      if (err) {
-        exit(`Unable to push changes:\n\n${stdout}\n\n${stderr}`)
-      } else {
-        console.log('✓ Push changes')
-      }
 
       // detach head
       ;[err, stdout, stderr] = yield exec('git checkout --detach', opts, getCallback())
@@ -122,27 +81,22 @@ program
         console.log('✓ Detach head')
       }
       var releasefilesAdded = false
-      // add dist files
-      ;[err, stdout, stderr] = yield exec('git add ./dist/* -f', opts, getCallback())
-      if (err) {
-        console.log('❌ Failed to add ./dist/* to index')
-      } else {
-        releasefilesAdded = true
-        console.log('✓ Add ./dist/* to index')
-      }
+      var files = p.files || []
 
-      // add module exports (i.e. ./ez-publish*)
-      ;[err, stdout, stderr] = yield exec(`git add ./${p.name}* -f`, opts, getCallback())
-      if (err) {
-        console.log(`❌ Failed to add ./${p.name}* to index`)
-      } else {
-        releasefilesAdded = true
-        console.log(`✓ Add ./${p.name}* to index`)
+      // add dist files
+      for (var i = 0; i < files.length; i++) {
+        ;[err, stdout, stderr] = yield exec(`git add ${files[i]} -f`, opts, getCallback())
+        if (err) {
+          console.warn(`❌ Failed to add ${files[i]} to index`)
+        } else {
+          releasefilesAdded = true
+          console.log(`✓ Add ${files[i]} to index`)
+        }
       }
 
       if (releasefilesAdded) {
         // commit dist files
-        ;[err, stdout, stderr] = yield exec(`git commit -am "Publish v${p.version} -- distribution files"`, opts, getCallback())
+        ;[err, stdout, stderr] = yield exec(`git commit -am "v${p.version} -- distribution files"`, opts, getCallback())
         if (err) {
           exit(`Unable to commit dist files:\n\n${stdout}\n\n${stderr}`)
         } else {
@@ -150,9 +104,11 @@ program
         }
       }
 
-      // remove existing tags (e.g. created by npm publish)
-      yield exec(`git tag -d v${p.version}`, opts, getCallback())
-      yield exec(`git push origin :refs/tags/v${p.version}`, opts, getCallback())
+      // remove existing tags (e.g. created by np)
+      if (command.overwriteExistingTag) {
+        yield exec(`git tag -d v${p.version}`, opts, getCallback())
+        yield exec(`git push origin :refs/tags/v${p.version}`, opts, getCallback())
+      }
 
       // tag releasefiles
       ;[err, stdout, stderr] = yield exec(`git tag v${p.version} -m "${releaseMessage}"`, opts, getCallback())

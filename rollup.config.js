@@ -7,16 +7,16 @@ const externalDependencies = Object.keys(packageJson.dependencies).concat([
 ])
 
 export default {
-  entry: 'src/ez-publish.js',
+  entry: 'src/tag-dist-files.js',
   format: 'cjs',
-  dest: 'ez-publish.js',
+  dest: 'tag-dist-files.js',
   plugins: [
     json(),
     babel({
       exclude: 'node_modules/**'
     })
   ],
-  sourceMap: 'inline',
+  sourceMap: true,
   external: externalDependencies,
   banner: '#!/usr/bin/env node'
 }

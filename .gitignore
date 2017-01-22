@@ -1,4 +1,4 @@
 /dist
-/ez-publish.*
+/tag-dist-files.*
 /node_modules
 /_debugging

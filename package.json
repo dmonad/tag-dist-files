@@ -1,21 +1,21 @@
 {
-  "name": "ez-publish",
-  "version": "1.0.0-alpha.16",
+  "name": "tag-dist-files",
+  "version": "0.0.0",
   "description": "Command line tool for publishing js libraries",
   "bin": {
-    "publish": "./ez-publish.js"
+    "tag-dist-files": "./tag-dist-files.js"
   },
   "files": [
-    "ez-publish.js"
+    "tag-dist-files.*"
   ],
   "scripts": {
     "dist": "rollup -c",
     "watch": "rollup -cw",
     "lint": "standard",
-    "debug": "npm run dist && cd _debugging && node --inspect --debug-brk ../ez-publish.js",
-    "prepublish": "npm run lint && npm run dist",
-    "postpublish": "node ./ez-publish.js -x",
-    "_test": "npm run dist && rm -rf _debugging; git clone git@github.com:ez-tools/_debugging.git && node ./ez-publish.js publish _debugging -s patch"
+    "debug": "npm run dist && cd _debugging && node --inspect --debug-brk ../tag-dist-files.js",
+    "postversion": "npm run lint && npm run dist",
+    "postpublish": "node ./tag-dist-files.js",
+    "_test": "npm run dist && rm -rf _debugging; git clone git@github.com:ez-tools/_debugging.git && cd _debugging && npm publish"
   },
   "keywords": [
     "publish",
@@ -33,9 +33,6 @@
   "dependencies": {
     "commander": "^2.9.0",
     "ez-async": "^1.0.0-alpha.1",
-    "load-json-file": "^2.0.0",
-    "readline": "^1.3.0",
-    "semver": "^5.3.0",
-    "write-json-file": "^2.0.0"
+    "load-json-file": "^2.0.0"
   }
 }
