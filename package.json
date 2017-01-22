@@ -14,7 +14,7 @@
     "lint": "standard",
     "debug": "npm run dist && cd _debugging && node --inspect --debug-brk ../tag-dist-files.js",
     "postversion": "npm run lint && npm run dist",
-    "postpublish": "node ./tag-dist-files.js",
+    "postpublish": "node ./tag-dist-files.js --overwrite-existing-tag",
     "_test": "npm run dist && rm -rf _debugging; git clone git@github.com:ez-tools/_debugging.git && cd _debugging && npm publish"
   },
   "keywords": [
