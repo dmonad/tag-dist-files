@@ -3,7 +3,7 @@ import json from 'rollup-plugin-json'
 
 const packageJson = require('./package.json')
 const externalDependencies = Object.keys(packageJson.dependencies).concat([
-  'fs', 'path', 'child_process'
+  'fs', 'path', 'child_process', 'regenerator-runtime/runtime'
 ])
 
 export default {

@@ -1,3 +1,4 @@
+import "regenerator-runtime/runtime";
 import program from 'commander'
 import packageJson from '../package.json'
 import { posix as path } from 'path'
