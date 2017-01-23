@@ -1,4 +1,4 @@
-import "regenerator-runtime/runtime";
+import 'regenerator-runtime/runtime'
 import program from 'commander'
 import packageJson from '../package.json'
 import { posix as path } from 'path'
@@ -35,6 +35,12 @@ program
     async(function * (getCallback) {
       function * exit (err) {
         console.error(err)
+        // move back from backup
+        for (i = 0; i < files.length; i++) {
+          yield exec(`rm -rf ${files[i]} && cp -rf .tag-dist-files-backup/${files[i]} .`, opts, getCallback())
+        }
+        yield exec('rm -rf .tag-dist-files-backup', opts, getCallback())
+
         console.log('Reverting to master branch')
         yield exec('git checkout master', opts, getCallback())
         process.exit(1)
@@ -89,8 +95,10 @@ program
       var releasefilesAdded = false
       var files = p.files || []
 
+      yield exec('mkdir -p .tag-dist-files-backup', opts, getCallback())
       // add dist files
       for (var i = 0; i < files.length; i++) {
+        yield exec(`cp ${files[i]} -rf .tag-dist-files-backup`, opts, getCallback())
         ;[err, stdout, stderr] = yield exec(`git add ${files[i]} -f`, opts, getCallback())
         if (err) {
           console.warn(`❌ Failed to add ${files[i]} to index`)
@@ -141,6 +149,12 @@ program
         yield * exit(`Unable to checkout branch 'master':\n\n${stdout}\n\n${stderr}`)
       } else {
         console.log('✓ Checkout master branch')
+        // move back from backup
+        for (i = 0; i < files.length; i++) {
+          // we cp because it is less likely to fail
+          yield exec(`rm -rf ${files[i]} && cp -rf .tag-dist-files-backup/${files[i]} .`, opts, getCallback())
+        }
+        yield exec('rm -rf .tag-dist-files-backup', opts, getCallback())
         yield exec('rm .releaseMessage', opts, getCallback())
         process.exit(0)
       }
